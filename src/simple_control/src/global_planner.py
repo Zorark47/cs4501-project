@@ -14,6 +14,7 @@ class GlobalPlanner:
     def __init__(self):
         self.dog_pos_sub = rospy.Subcriber("/cell_tower/position", PoseStamped, self.get_pos, queue_size=1)
         self.goal = 0
+        self.transform_stamped = TransformStamped()
 
     def get_pos(self, msg):
         self.goal = msg
