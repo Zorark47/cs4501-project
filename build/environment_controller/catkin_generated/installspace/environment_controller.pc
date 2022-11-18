@@ -1,0 +1,8 @@
+prefix=/root/CS4501-Labs/project/install
+
+Name: environment_controller
+Description: Description of environment_controller
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lbeginner_tutorials
+Requires: geometry_msgs roscpp std_msgs tf2 tf2_ros sensor_msgs
