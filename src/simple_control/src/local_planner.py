@@ -22,14 +22,24 @@ class LocalPlanner:
         self.grid = OccupancyGrid(data = [50] * (self.width * self.height))
         self.grid.info.width = self.width
         self.grid.info.height = self.height
+        self.grid.info.origin.position.x = float(self.width) / -2.0
+        self.grid.info.origin.position.y = float(self.height) / -2.0
         
 
         self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
         num = 0
-        for y in range(self.height):
-            for x in range(self.width):
+        for x in range(self.width):
+            for y in range(self.height):
                 self.o_index_grid[x][y] = num
                 num += 1
+        
+        self.grid.data[self.o_index_grid[0][0]] = 0
+        self.grid.data[self.o_index_grid[self.width - 1][self.height - 1]] = 100
+        self.grid.data[self.o_index_grid[self.width - 1][0]] = 25
+        self.grid.data[self.o_index_grid[0][self.height - 1]] = 75
+
+
+
 
 
         self.mainloop()
@@ -48,9 +58,10 @@ class LocalPlanner:
             angle = self.lidar.angle_min + (i * self.lidar.angle_increment) + yaw
             point_x = int(round(((self.lidar.ranges[i] * math.sin(angle) * -1) + self.gps.pose.position.x - (self.width / 2))))
             point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + (self.height / 2))))
+            
 
-            if (point_x < self.width) and(point_x > 0) and (point_y < self.height) and (point_y > 0):
-                self.grid.data[self.o_index_grid[point_x][point_y]]
+            if (point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_y > 0):
+                self.grid.data[self.o_index_grid[point_x][point_y]] += 5
 
 
             """
@@ -73,6 +84,7 @@ class LocalPlanner:
         rate = rospy.Rate(2)
         while not rospy.is_shutdown():
             if self.gps != None and self.lidar != None:
+                #self.grid.data[self.o_index_grid[int(self.gps.pose.position.x)][int(self.gps.pose.position.y)]] = 0
                 self.update_grid()
                 self.map_pub.publish(self.grid)
         rate.sleep()
