@@ -31,7 +31,4 @@
     <param name="seed" type="int" value="$(arg seed)" />
   </node>
 
-  <node name="local_planner" pkg="simple_control" type="local_planner.py" output="screen" />
-
-
 </launch>

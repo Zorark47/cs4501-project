@@ -19,7 +19,7 @@ class LocalPlanner:
         self.map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
-        self.grid = OccupancyGrid(data = [0], info = MapMetaData(width=self.width, height=self.height))
+        self.grid = OccupancyGrid(data = [50] * (self.width * self.height), info = MapMetaData(width=self.width, height=self.height))
 
         self.mainloop()
         
@@ -38,7 +38,7 @@ class LocalPlanner:
             point_x = int(round(((self.lidar.ranges[i] * math.sin(angle) * -1) + self.gps.pose.position.x + (self.width / 2))))
             point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + (self.height / 2))))
             if point_x < self.width and point_y < self.height:
-                self.grid.data[point_x][point_y] += 5
+                self.grid.data[point_x + (point_y * self.width)] += 5
 
     def mainloop(self):
         rate = rospy.Rate(2)
