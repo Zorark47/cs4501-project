@@ -21,6 +21,14 @@ class LocalPlanner:
         self.height = rospy.get_param('/environment_controller/map_height')
         self.grid = OccupancyGrid(data = [50] * (self.width * self.height), info = MapMetaData(width=self.width, height=self.height))
 
+        self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
+        num = 0
+        for y in range(self.width):
+            for x in range(self.height):
+                self.o_index_grid[x][y] = num
+                num += 1
+
+
         self.mainloop()
         
     def get_gps(self, msg):
@@ -35,14 +43,18 @@ class LocalPlanner:
             if self.lidar.ranges[i] > self.lidar.range_max:
                 continue
             angle = self.lidar.angle_min + (i * self.lidar.angle_increment) + yaw
-            point_x = int(round(((self.lidar.ranges[i] * math.sin(angle) * -1) + self.gps.pose.position.x + (self.width / 2))))
-            point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + (self.height / 2))))
-            if point_x < self.width and point_y < self.height:
-                self.grid.data[point_x + (point_y * self.width)] += 5
+            point_x = int(round(((self.lidar.ranges[i] * math.sin(angle)) + (self.width / 2)))) #+ self.gps.pose.position.x 
+            point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + (self.height / 2)))) #+ self.gps.pose.position.y
+
+            # if (point_x < self.width) and(point_x > 0) and (point_y < self.height) and (point_y > 0):
+            # rospy.loginfo(point_x)
+            # rospy.loginfo(point_y)
+            # self.grid.data[self.o_index_grid[point_x][point_y]] += 5
 
     def mainloop(self):
         rate = rospy.Rate(2)
         while not rospy.is_shutdown():
+            rospy.loginfo(self.o_index_grid)
             if self.gps != None and self.lidar != None:
                 self.update_grid()
                 self.map_pub.publish(self.grid)
