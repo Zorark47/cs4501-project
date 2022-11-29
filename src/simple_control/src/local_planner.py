@@ -22,20 +22,34 @@ class LocalPlanner:
         self.grid = OccupancyGrid(data = [50] * (self.width * self.height))
         self.grid.info.width = self.width
         self.grid.info.height = self.height
+        self.grid.info.origin.position.x = float(self.width) / -2.0
+        self.grid.info.origin.position.y = float(self.height) / -2.0
         
 
         self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
         num = 0
-        for y in range(self.height):
-            for x in range(self.width):
+        for x in range(self.width):
+            for y in range(self.height):
                 self.o_index_grid[x][y] = num
                 num += 1
+        
+        self.grid.data[self.o_index_grid[0][0]] = 0                                 #bottom left
+        self.grid.data[self.o_index_grid[self.width - 1][self.height - 1]] = 100    #top right
+        self.grid.data[self.o_index_grid[self.width - 1][0]] = 25                   #bottom right left
+        self.grid.data[self.o_index_grid[0][self.height - 1]] = 75                  #top left
+
+
+
 
 
         self.mainloop()
         
     def get_gps(self, msg):
         self.gps = msg
+        
+        # convert gps to the correct coordinats of the 
+        self.gps.pose.position.x += float(self.width) / 2
+        self.gps.pose.position.y += float(self.height) / 2
 
     def get_lidar(self, msg):
         self.lidar = msg
@@ -45,35 +59,43 @@ class LocalPlanner:
         for i in range(len(self.lidar.ranges)):
             if self.lidar.ranges[i] > self.lidar.range_max:
                 continue
+            # store the yaw of the drone from (clockwise from top center)
+            roll, pitch, yaw = euler_from_quaternion((self.gps.pose.orientation.x, self.gps.pose.orientation.y, self.gps.pose.orientation.z, self.gps.pose.orientation.w))
+        
+            # lidar scan point (clockwise from top center) NOT FROM DRONE'S FRAME
             angle = self.lidar.angle_min + (i * self.lidar.angle_increment) + yaw
-            point_x = int(round(((self.lidar.ranges[i] * math.sin(angle) * -1) + self.gps.pose.position.x - (self.width / 2))))
-            point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + (self.height / 2))))
-
-            if (point_x < self.width) and(point_x > 0) and (point_y < self.height) and (point_y > 0):
-                self.grid.data[self.o_index_grid[point_x][point_y]]
 
 
-            """
-            if self.lidar.ranges[i] > self.lidar.range_max:
-                continue
-            angle = self.lidar.angle_min + (i * self.lidar.angle_increment) + yaw
-            point_x = int(round(((self.lidar.ranges[i] * math.sin(angle) * -1) + self.gps.pose.position.x + (self.width / 2))))
-            point_y = int(round(((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + (self.height / 2))))
-            print("made it here")
-            print(point_x)
-            print(point_y)
-            print(self.width)
-            print(self.height)
-            if (point_x < self.width) and(point_x > 0) and (point_y < self.height) and (point_y > 0):
-                self.grid.data[]
-                #self.grid.data[point_x][point_y] += 5
-            """
+            # set the point of where the lidar is bouncing back froom
+            point_x = int(round((self.lidar.ranges[i] * math.sin(angle)) + self.gps.pose.position.x))
+            point_y = int(round((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y))
+
+            # increase prob at lidar range
+            if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): #check if valid location
+                if(self.grid.data[self.o_index_grid[point_x][point_y]] < 100): # 
+                    self.grid.data[self.o_index_grid[point_x][point_y]] += .001
+            
+
+            # reduce prob at points between drone and lidar range
+            for d in range(int(self.lidar.ranges[i])):
+                point_x = int(((d * math.sin(angle)) + self.gps.pose.position.x))
+                point_y = int(((d * math.cos(angle)) + self.gps.pose.position.y))
+
+                if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
+                    if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
+                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .02
+            
+
+
+
 
     def mainloop(self):
         rate = rospy.Rate(2)
         while not rospy.is_shutdown():
             if self.gps != None and self.lidar != None:
+                
                 self.update_grid()
+
                 self.map_pub.publish(self.grid)
         rate.sleep()
 
