@@ -65,7 +65,7 @@ class LocalPlanner:
             self.grid.data[self.o_index_grid[6][5]] = -1
         else:
             self.grid.data[self.o_index_grid[6][5]] = -2
-            rospy.loginfo(self.success)
+            # rospy.loginfo(self.success)
 
         for i in range(len(self.lidar.ranges)):
             if self.lidar.ranges[i] > self.lidar.range_max:
@@ -92,16 +92,17 @@ class LocalPlanner:
             # increase prob at lidar range
             if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): #check if valid location
                 if(self.grid.data[self.o_index_grid[point_x][point_y]] < 100): # 
-                    self.grid.data[self.o_index_grid[point_x][point_y]] += .05
+                    self.grid.data[self.o_index_grid[point_x][point_y]] += .03
+                    continue
 
             # reduce prob at points between drone and lidar range
-            for d in range(int(self.lidar.ranges[i])):
-                point_x = int(((d * math.sin(angle)) + self.gps.pose.position.x))
-                point_y = int(((d * math.cos(angle)) + self.gps.pose.position.y))
+            for d in range(int(math.ceil(self.lidar.ranges[i]))):
+                point_x = int((d * math.sin(angle)) + self.gps.pose.position.x)
+                point_y = int((d * math.cos(angle)) + self.gps.pose.position.y)
 
                 if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
                     if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
-                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .1
+                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .10
 
     def mainloop(self):
         rate = rospy.Rate(2)
