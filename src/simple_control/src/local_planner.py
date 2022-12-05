@@ -13,6 +13,8 @@ import mission_planner
 class LocalPlanner:
 
     def __init__(self):
+        time.sleep(5)
+
         self.gps = None
         self.lidar = None
         self.lidar_sub = rospy.Subscriber("/uav/sensors/lidar", LaserScan, self.get_lidar, queue_size=1)
@@ -29,6 +31,7 @@ class LocalPlanner:
         self.success = False
         self.mission_planner = mission_planner.MissionPlanner()
 
+        #hardcode
         self.delay = 0
         
 
@@ -56,9 +59,10 @@ class LocalPlanner:
     def get_lidar(self, msg):
         self.lidar = msg
 
+    # def check_door(self):
+
     def update_grid(self):
         roll, pitch, yaw = euler_from_quaternion((self.gps.pose.orientation.x, self.gps.pose.orientation.y, self.gps.pose.orientation.z, self.gps.pose.orientation.w))
-        
 
         # hardcoded door
         if self.success == False:
@@ -77,8 +81,13 @@ class LocalPlanner:
             angle = self.lidar.angle_min + (i * self.lidar.angle_increment) + yaw
 
             # set the point of where the lidar is bouncing back froom
-            point_x = int(round((self.lidar.ranges[i] * math.sin(angle)) + self.gps.pose.position.x))
-            point_y = int(round((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y))
+            point_x = int(math.ceil((self.lidar.ranges[i] * math.sin(angle)) + self.gps.pose.position.x + .5)) \
+                if self.lidar.ranges[i] * math.sin(angle) + self.gps.pose.position.x > (float(self.width) / 2) \
+                else int(math.floor((self.lidar.ranges[i] * math.sin(angle)) + self.gps.pose.position.x - .5)) 
+            
+            point_y = int(math.ceil((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y + .5)) \
+                if self.lidar.ranges[i] * math.cos(angle) + self.gps.pose.position.y > (float(self.height) / 2) \
+                else int(math.floor((self.lidar.ranges[i] * math.cos(angle)) + self.gps.pose.position.y - .5)) 
             
             # door hardcode
             if point_x == 6 and point_y == 5:
@@ -87,6 +96,7 @@ class LocalPlanner:
                 if [point_x, point_y] not in self.opened_doors and self.delay > 15000:
                     self.opened_doors.append([point_x, point_y])
                     self.success = self.mission_planner.use_keyClient(Point(1, 0, 0))
+                    rospy.loginfo("door opened")
                 continue
 
             # increase prob at lidar range
@@ -97,12 +107,12 @@ class LocalPlanner:
 
             # reduce prob at points between drone and lidar range
             for d in range(int(math.ceil(self.lidar.ranges[i]))):
-                point_x = int((d * math.sin(angle)) + self.gps.pose.position.x)
-                point_y = int((d * math.cos(angle)) + self.gps.pose.position.y)
+                inb_point_x = int(math.floor(d * math.sin(angle) + self.gps.pose.position.x))
+                inb_point_y = int(math.floor(d * math.cos(angle) + self.gps.pose.position.y))
 
-                if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
-                    if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
-                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .10
+                if(inb_point_x < self.width) and (inb_point_x > 0) and (inb_point_y < self.height) and (inb_point_x > 0): # check if valid locaiton
+                    if(self.grid.data[self.o_index_grid[inb_point_x][inb_point_y]] > 0): # make sure prob is not already 0
+                        self.grid.data[self.o_index_grid[inb_point_x][inb_point_y]] -= .10
 
     def mainloop(self):
         rate = rospy.Rate(2)
