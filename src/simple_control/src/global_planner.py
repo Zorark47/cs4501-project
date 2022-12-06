@@ -40,8 +40,17 @@ class GlobalPlanner:
         self.goal_pub = rospy.Publisher('/uav/goal', Vector3, queue_size=1)
         self.moving_pub = rospy.Publisher('/uav/moving', Bool, queue_size=1)
 
+        self.doors_sub = rospy.Subscriber('/map/doors', Vector3, self.get_doors, queue_size=1)
+
+        self.list_of_doors = set()
+        self.doors_visited = []
+
 
         self.mainloop()
+
+    def get_doors(self, msg):
+        rospy.loginfo(Vector3(x=msg.x-(float(self.width)/2), y=self.height-(msg.y-(float(self.height)/2)), z=0))
+        self.list_of_doors.add((msg.x, msg.y))
 
     def transform_tower(self, msg):
         if not self.goal and not self.got_goal:
@@ -76,7 +85,7 @@ class GlobalPlanner:
     def bug(self):
         next_point = None
         # check right
-        if self.facing == 0: # north
+        if self.facing == 0 or self.facing == -360: # north
             if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]: # check right wall (right)
                 next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
                 self.facing += 90
@@ -86,7 +95,7 @@ class GlobalPlanner:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 90: # right
+        elif self.facing == 90 or self.facing == -270: # right
             if self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-2, 0]: # check right wall (down) not there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y-1, z=0)
                 self.facing += 90
@@ -96,7 +105,7 @@ class GlobalPlanner:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 180: # down
+        elif self.facing == 180 or self.facing == -180: # down
             if self.map[int(round(self.gps.x))-1][int(round(self.gps.y))] in [-2, 0]: # check right wall (left) not there
                 next_point = Vector3(x=self.current_point.x-1, y=self.current_point.y, z=0)
                 self.facing += 90
@@ -106,7 +115,7 @@ class GlobalPlanner:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 270: # left
+        elif self.facing == 270 or self.facing == -90: # left
             if self.map[int(round(self.gps.x))][int(round(self.gps.y))+1] in [-2, 0]: # check right wall (up) not there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
                 self.facing += 90
@@ -118,10 +127,18 @@ class GlobalPlanner:
 
         return next_point   
 
+    def go_to_door(self):
+        for door in self.list_of_doors:
+            if door not in self.doors_visited:
+                self.doors_visited.append(door)
+                rospy.loginfo(Vector3(x=door[0]-(float(self.width)/2), y=self.height-(door[1]-(float(self.height)/2)), z=0))
+                self.next_point = Vector3(x=door[0]-(self.width/2), y=door[1]-(self.height/2))
+                self.position_pub.publish(self.next_point)
+
     def mainloop(self):
         rate = rospy.Rate(2)
         self.moving_pub.publish(False)
-        time.sleep(1)
+        time.sleep(25)
         self.moving_pub.publish(False)
         time.sleep(1)
         self.moving_pub.publish(False)
@@ -129,22 +146,9 @@ class GlobalPlanner:
         # While ROS is still running
         first = True
         while not rospy.is_shutdown():
-            '''
-            self.moving_pub.publish(not self.at_waypoint)
-            if self.at_waypoint:
-                time.sleep(3)
-                self.at_waypoint = False
-                self.next_point = self.bug()
-                if self.next_point:
-                    self.position_pub.publish(self.next_point)
-                    rospy.loginfo("got next point")
-            if self.current_point == self.next_point and not self.at_waypoint:
-                self.at_waypoint = True
-            '''
-            print("cur oint " + str(self.current_point))
-            print("next point " + str(self.next_point))
+            if self.list_of_doors:
+                self.go_to_door()
             if (self.current_point == self.next_point) or first:
-                print("pub false")
                 time.sleep(3)
                 self.moving_pub.publish(False)
                 time.sleep(3)

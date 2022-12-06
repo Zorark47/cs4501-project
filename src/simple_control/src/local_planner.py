@@ -22,6 +22,7 @@ class LocalPlanner:
         self.goal_sub = rospy.Subscriber('/uav/goal', Vector3, self.get_goal, queue_size=1)
         self.is_moving_sub = rospy.Subscriber('uav/moving', Bool, self.get_is_moving, queue_size=1)
         self.map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
+        self.doors_pub = rospy.Publisher('/map/doors', Vector3, queue_size=1)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
         self.grid = OccupancyGrid(data = [50] * (self.width * self.height))
@@ -41,7 +42,7 @@ class LocalPlanner:
         self.door_count = 0
         self.has_run = False
         self.prev_scan = [0 for x in range(16)]
-        self.list_of_doors = [(-1, -1) for x in range(3)]
+        self.list_of_doors = []
 
 
         #open door globals
@@ -95,8 +96,10 @@ class LocalPlanner:
                     
                     print("setting door at: (" + str(x) + ", " + str(y) + ") index: " + str(i))
                     self.grid.data[self.o_index_grid[x][y]] = -1
-                    self.list_of_doors[self.door_count] = (x, y)
+                    self.list_of_doors.append((x, y))
                     self.door_count += 1
+                    for door in self.list_of_doors:
+                        self.doors_pub.publish(Vector3(x=door[0], y=door[1], z=0))
 
 
         self.prev_scan[i] = self.lidar.ranges[i]
@@ -127,9 +130,8 @@ class LocalPlanner:
             print("opening door at og: (" + str(og_x) + ", " + str(og_y) + ")")
             self.opened_doors.append((door[0], door[1]))
             self.success = self.mission_planner.use_keyClient(Point(og_x, og_y, 0))
-            if not self.success:
-                print("mission failed lost a key")
-            else:
+            rospy.loginfo(self.success)
+            if self.success:
                 self.grid.data[self.o_index_grid[door[0]][door[1]]] = -2
 
 
