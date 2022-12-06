@@ -13,7 +13,6 @@ import mission_planner
 class LocalPlanner:
 
     def __init__(self):
-        rospy.sleep(10)
         self.gps = None
         self.lidar = None
         self.goal = None
@@ -31,16 +30,17 @@ class LocalPlanner:
         self.opened_doors = []
         self.success = False
         self.mission_planner = mission_planner.MissionPlanner()
+        #self.prev_scan = [0 for x in range(self.lidar.ranges)]
 
         #hardcode
         self.delay = 0
         
-
+        
         self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
         num = 0
         for x in range(self.width):
             for y in range(self.height):
-                self.o_index_grid[x][y] = num
+                self.o_index_grid[x][(self.height - y) - 1] = num
                 num += 1
         
         self.grid.data[self.o_index_grid[0][0]] = 0                                 #bottom left
@@ -58,13 +58,22 @@ class LocalPlanner:
         self.gps = msg
         
         # convert gps to the correct coordinats of the 
-        self.gps.pose.position.x += (float(self.width) / 2) - 0.5
-        self.gps.pose.position.y += (float(self.height) / 2) - 0.5
-        # print("x: " + str(self.gps.pose.position.x))
-        # print("y: " + str(self.gps.pose.position.y))
+        self.gps.pose.position.x += ((float(self.width) / 2) - 0.5)
+        self.gps.pose.position.y += ((float(self.height) / 2) - 0.5)
+        #print("x: " + str(self.gps.pose.position.x))
+        #print("y: " + str(self.gps.pose.position.y))
 
     def get_lidar(self, msg):
         self.lidar = msg
+    
+    def setDoor(self):
+        min_noise = 0.01
+        for i in range(len(self.lidar.ranges)):
+            if abs(self.prev_scan.ranges[i] - self.lidar.ranges[i]) > min_noise:
+                print("I think this is a door" + str(i))
+
+        self.prev_scan = self.lidar.ranges
+
 
     # def check_door(self):
 
@@ -81,34 +90,38 @@ class LocalPlanner:
                 
             # store the yaw of the drone from (clockwise from top center)
             roll, pitch, yaw = euler_from_quaternion((self.gps.pose.orientation.x, self.gps.pose.orientation.y, self.gps.pose.orientation.z, self.gps.pose.orientation.w))
-        
+            #yaw = yaw % (2 * math.pi)#((-1 * yaw) + (2 * math.pi)) % (2 * math.pi)
             # lidar scan point (clockwise from top center) NOT FROM DRONE'S FRAME
-            angle = ((self.lidar.angle_min) + (i * self.lidar.angle_increment) + yaw - (math.pi / 2)) % (2 * math.pi)
+            angle = ((0.448798954487) + (i * self.lidar.angle_increment) + (( math.pi) / 2)) % (2 * math.pi)
 
             # set the point of where the lidar is bouncing back froom
             point_x = ((distance) * math.sin(angle)) + self.gps.pose.position.x
             point_y = ((distance) * math.cos(angle)) + self.gps.pose.position.y
             
 
-            # if False and  i == 11: #angle > 5.8 or angle < 0.2:
-            #     print("angle: " + str(angle))
-            #     print("lidar index: " + str(i))
-            #     print("distance : " + str(self.lidar.ranges[i]))
-            #     print("x: " + str(point_x))
-            #     print("y: " + str(point_y))
-            #     print(" ")
+            if i == 15: #angle > 5.8 or angle < 0.2:
+                print("angle: " + str(angle))
+                print("lidar index: " + str(i))
+                print("distance : " + str(self.lidar.ranges[i]))
+                print("x: " + str(point_x))
+                print("y: " + str(point_y))
+                print("int  ensi: " + str(self.lidar.intensities[i]))
+                print("intensit7: " + str(self.lidar.intensities[11]))
+                
 
             # starting the new better code here
             # assuming I have a very good lidar
-            mid = 0.2
+            mid =.3
 
             if(angle > 5.49779) or (angle <= 0.785398):
                 # upper 90
-                if (angle < (mid / 2)) or (angle > (math.pi - (mid / 2))):
+                if (angle < (mid / 2)) or (angle > ((2 * math.pi) - (mid / 2))):
+                    if i == 15:
+                        print("here")
                     # middle
                     o_point_x = int(round(point_x))
                     e_point_x = int(round(point_x))
-                if(angle >= 0) and (angle <= 0.785398):
+                elif(angle >= 0) and (angle <= 0.785398):
                     # right
                     o_point_x = int(math.ceil(point_x))
                     e_point_x = int(math.floor(point_x))
@@ -124,7 +137,7 @@ class LocalPlanner:
                     # middle
                     o_point_y = int(round(point_y))
                     e_point_y = int(round(point_y))
-                if angle >= math.pi / 2:
+                elif angle >= math.pi / 2:
                     # down
                     o_point_y = int(math.ceil(point_y))
                     e_point_y = int(math.floor(point_y))
@@ -152,7 +165,7 @@ class LocalPlanner:
                 e_point_y = int(math.ceil(point_y))
             elif(angle > 3.92699) and (angle <= 5.49779):
                 # left 90
-                if abs(angle - (3 * math.pi) / 4) < mid:
+                if abs(angle - 4.71239) < mid:
                     # middle 
                     o_point_y = int(round(point_y))
                     e_point_y = int(round(point_y))
@@ -166,20 +179,28 @@ class LocalPlanner:
                     e_point_y = int(math.ceil(point_y))
                 o_point_x = int(math.floor(point_x))
                 e_point_x = int(math.ceil(point_x))
+            #if(o_point_x == 6) and (o_point_y == 5):
+                #print("angle: " + str(angle))
+            if i == 15:
+                print("x: " + str(o_point_x))
+                print("y: " + str(o_point_y))
+                
+                
+                
 
             # increase obstance point
-            inc = .03
+            inc = .9
             if (distance < self.lidar.range_max) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] <= (100 - inc)):
                 self.grid.data[self.o_index_grid[o_point_x][o_point_y]] += inc
             
             # decrease furthest empty point
-            dec = .03
+            dec = .3
             if(distance > 3):
                 if self.grid.data[self.o_index_grid[e_point_x][e_point_y]] >= dec:
                     self.grid.data[self.o_index_grid[e_point_x][e_point_y]] -= dec
             
             # decrease in between points
-            step = 0.1
+            step = 0.3
             distance -= step
             while distance > 0:
                 if(int(round((distance * math.sin(angle)) + self.gps.pose.position.x)) != e_point_x) or (int(round((distance * math.cos(angle)) + self.gps.pose.position.y)) != e_point_y):
@@ -226,11 +247,15 @@ class LocalPlanner:
 
     def mainloop(self):
         rate = rospy.Rate(2)
+        self.prev_scan = self.lidar
+
         while not rospy.is_shutdown():
             # rospy.loginfo(self.o_index_grid)
             if self.gps != None and self.lidar != None:
                 
                 self.update_grid()
+                
+                #self.setDoor()
 
                 self.map_pub.publish(self.grid)
         rate.sleep()
