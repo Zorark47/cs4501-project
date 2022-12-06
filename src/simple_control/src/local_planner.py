@@ -74,7 +74,7 @@ class LocalPlanner:
         self.lidar = msg
     
     def setDoor(self, i, x, y):
-        min_noise = 0.1
+        min_noise = 0.2
         if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise):
             # check the door hasn't been set and there isn't already 3 doors
             if (x, y) not in self.list_of_doors and self.door_count < 3:

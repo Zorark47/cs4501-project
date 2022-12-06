@@ -20,6 +20,8 @@ class GlobalPlanner:
         self.map = None
         self.at_waypoint = True
         self.got_goal = False
+        self.facing = 'east'
+        self.next_point = None
         self.current_point = Vector3()
         self.next_goal = Vector3(5,8,0)
         self.width = rospy.get_param('/environment_controller/map_width')
@@ -35,6 +37,7 @@ class GlobalPlanner:
         self.path_pub = rospy.Publisher('uav/path', Int32MultiArray, queue_size=1)
 
         self.goal_pub = rospy.Publisher('/uav/goal', Vector3, queue_size=1)
+        self.moving_pub = rospy.Publisher('/uav/moving', bool, queue_size=1)
 
 
         self.mainloop()
@@ -44,18 +47,12 @@ class GlobalPlanner:
             self.goal = msg
         if self.goal and not self.got_goal:
             try: 
-                    #TODO: Lookup the tower to world transform
                 transform = self.tfBuffer.lookup_transform('cell_tower', 'world', rospy.Time())
-
-                    #TODO: Convert the goal to a PointStamped
                 point = PointStamped(header=None, point=Point(x=self.goal.x, y=self.goal.y, z=0))
-
-                    #TODO: Use the do_transform_point function to convert the point using the transform
                 new_point = do_transform_point(point, transform)
-
-                    #TODO: Convert the point back into a vector message containing integers
-                self.goal = Vector3(x=new_point.point.x+(float(self.width)/2), y=new_point.point.y+(float(self.height)/2), z=0)
+                self.goal = Vector3(x=new_point.point.x+(float(self.width)/2), y=self.height-(new_point.point.y+(float(self.height)/2)), z=0)
                 self.got_goal = True
+                rospy.loginfo(self.goal)
                 self.goal_pub.publish(self.goal)
 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -78,11 +75,10 @@ class GlobalPlanner:
     def bug(self):
         next_point = None
         # check right
-        rospy.loginfo(int(round(self.gps.x)) + 1)
-        rospy.loginfo(int(round(self.gps.y)))
         if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] == 0:
             next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
             # rospy.loginfo(next_point)
+            self.facing = 'east'
         return next_point   
 
     def mainloop(self):
@@ -90,16 +86,17 @@ class GlobalPlanner:
         time.sleep(5)
         # While ROS is still running
         while not rospy.is_shutdown():
-            next_point = None
+            self.moving_pub.publish(not self.at_waypoint)
             if self.at_waypoint:
-                next_point = self.bug()
-                if next_point:
-                    self.position_pub.publish(next_point)
-                    self.at_waypoint = False
-            if self.current_point == next_point and not self.at_waypoint:
+                self.at_waypoint = False
+                self.next_point = self.bug()
+                if self.next_point:
+                    self.position_pub.publish(self.next_point)
+                    rospy.loginfo("got next point")
+            if self.current_point == self.next_point and not self.at_waypoint:
                 self.at_waypoint = True
             
-    #     rate.sleep()
+        rate.sleep()
 
 if __name__ == '__main__':
   rospy.init_node('global_planner')
