@@ -37,6 +37,8 @@ class LocalPlanner:
         self.has_run = False
         self.prev_scan = [0 for x in range(16)]
         self.list_of_doors = [(-1, -1) for x in range(3)]
+
+        #open door globals
         
         self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
         self.o_confirm_grid = [[0 for x in range(self.width)]for y in range(self.height)]
@@ -47,7 +49,7 @@ class LocalPlanner:
                 self.o_index_grid[x][(self.height - y) - 1] = num
                 num += 1
         
-        self.grid.data[self.o_index_grid[0][0]] = 0                                 #bottom left
+        #self.grid.data[self.o_index_grid[0][0]] = 0                                 #bottom left
         # self.grid.data[self.o_index_grid[self.width - 1][self.height - 1]] = 100    #top right
         # self.grid.data[self.o_index_grid[self.width - 1][0]] = 25                   #bottom right left
         # self.grid.data[self.o_index_grid[0][self.height - 1]] = 75                  #top left
@@ -66,9 +68,11 @@ class LocalPlanner:
     def get_lidar(self, msg):
         self.lidar = msg
     
+    # if a door is seen set it to a closed door
     def setDoor(self, i, x, y):
+
         min_noise = 0.1
-        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise):
+        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise) and (abs(self.prev_scan[i] - self.lidar.ranges[i]) < 0.5):
             # check the door hasn't been set and there isn't already 3 doors
             if (x, y) not in self.list_of_doors and self.door_count < 3:
                 # check that there is no door directly next to it
@@ -83,8 +87,40 @@ class LocalPlanner:
         if i == 15:
             self.has_run = True
 
+    
+    # if there is a door that can be opened, open it
+    def openDoor(self, x, y):
+        # see if the drone is directly next to an unopened door
+        count = 0
+        if ((x + 1, y) in self.list_of_doors) and ((x + 1, y) not in self.opened_doors):
+            door = (x + 1, y)
+            count += 1
+        if ((x - 1, y) in self.list_of_doors) and ((x - 1, y) not in self.opened_doors):
+            door = (x - 1, y)
+            count += 1
+        if ((x, y + 1) in self.list_of_doors) and ((x, y + 1) not in self.opened_doors):
+            door = (x, y + 1)
+            count += 1
+        if ((x, y - 1) in self.list_of_doors) and ((x, y - 1) not in self.opened_doors):
+            door = (x, y - 1)
+            count += 1
+        if (count == 1):
+            print("opening door at   : (" + str(door[0]) + ", " + str(door[1]) + ")")
+            og_x = door[0] - math.floor((self.width) / 2)
+            og_y = door[1] - math.floor((self.height) / 2)
+            print("opening door at og: (" + str(og_x) + ", " + str(og_y) + ")")
+            self.opened_doors.append((door[0], door[1]))
+            self.success = self.mission_planner.use_keyClient(Point(og_x, og_y, 0))
+            if not self.success:
+                print("mission failed lost a key")
+            else:
+                self.grid.data[self.o_index_grid[door[0]][door[1]]] = -2
 
 
+
+
+
+    # update the grid based on the newest lidar scan
     def update_grid(self):
         roll, pitch, yaw = euler_from_quaternion((self.gps.pose.orientation.x, self.gps.pose.orientation.y, self.gps.pose.orientation.z, self.gps.pose.orientation.w))
         
@@ -229,39 +265,6 @@ class LocalPlanner:
                         if self.grid.data[self.o_index_grid[e_point_x][e_point_y]] >= dec and (self.o_confirm_grid[e_point_x][e_point_y] == 0):#self.grid.data[self.o_index_grid[e_point_x][e_point_y]] < 99:
                             self.grid.data[self.o_index_grid[e_point_x][e_point_y]] -= dec
                 distance -= step                        
-
-
-            
-
-
-
-
-            
-            '''
-            # door hardcode
-            if point_x == 6 and point_y == 5:
-                self.delay += 1
-                # rospy.loginfo("door detected at 6, 5 from bottom left corner")
-                if [point_x, point_y] not in self.opened_doors and self.delay > 15000:
-                    self.opened_doors.append([point_x, point_y])
-                    self.success = self.mission_planner.use_keyClient(Point(1, 0, 0))
-                continue
-
-            # increase prob at lidar range                for i in range(len(self.lidar.ranges)):
-                    angle = ((self.lidar.angle_min) + (i * self.lidar.angle_increment)) % (2 * math.pi)
-                    print("lidar angles i: " + str(i) + "angle: " + str(angle))oint_x][point_y]] < 100): # 
-                    self.grid.data[self.o_index_grid[point_x][point_y]] += .05
-                    continue
-
-            # reduce prob at points between drone and lidar range
-            for d in range(int(math.ceil(self.lidar.ranges[i]))):
-                point_x = int(round(d * math.sin(angle)) + self.gps.pose.position.x)
-                point_y = int(round(d * math.cos(angle)) + self.gps.pose.position.y)
-
-                if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
-                    if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
-                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .10
-            '''
         
 
     def mainloop(self):
@@ -273,6 +276,7 @@ class LocalPlanner:
             if self.gps != None and self.lidar != None:
                 
                 self.update_grid()
+                self.openDoor(int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y)))
                 
                 #self.setDoor()
 
