@@ -7,7 +7,7 @@ from std_msgs.msg import Bool
 from geometry_msgs.msg import Vector3, Point, PointStamped, PoseStamped, TransformStamped
 from nav_msgs.msg import OccupancyGrid, Path
 from tf2_geometry_msgs import do_transform_point
-from std_msgs import Bool
+from std_msgs.msg import Bool
 from std_msgs.msg import Int32MultiArray
 from astar_class import AStarPlanner
 import numpy as np
@@ -21,7 +21,7 @@ class GlobalPlanner:
         self.map = None
         self.at_waypoint = True
         self.got_goal = False
-        self.facing = 'east'
+        self.facing = 0
         self.next_point = None
         self.current_point = Vector3()
         self.next_goal = Vector3(5,8,0)
@@ -76,10 +76,46 @@ class GlobalPlanner:
     def bug(self):
         next_point = None
         # check right
-        if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]:
-            next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
-            # rospy.loginfo(next_point)
-            self.facing = 'east'
+        if self.facing == 0: # north
+            if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]: # check right wall (right)
+                next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
+                self.facing += 90
+            elif self.map[int(round(self.gps.x))][int(round(self.gps.y)) + 1] in [-2, 0]:
+                next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
+            else:
+                self.facing -= 90
+                return self.current_point
+
+        elif self.facing == 90: # right
+            if self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-2, 0]: # check right wall (down) not there
+                next_point = Vector3(x=self.current_point.x, y=self.current_point.y-1, z=0)
+                self.facing += 90
+            elif self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]: # right wall is there
+                next_point = Vector3(x=self.current_point.x + 1, y=self.current_point.y, z=0)
+            else:
+                self.facing -= 90
+                return self.current_point
+
+        elif self.facing == 180: # down
+            if self.map[int(round(self.gps.x))-1][int(round(self.gps.y))] in [-2, 0]: # check right wall (left) not there
+                next_point = Vector3(x=self.current_point.x-1, y=self.current_point.y, z=0)
+                self.facing += 90
+            elif self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-2, 0]: # right wall is there
+                next_point = Vector3(x=self.current_point.x, y=self.current_point.y-1, z=0)
+            else:
+                self.facing -= 90
+                return self.current_point
+
+        elif self.facing == 270: # left
+            if self.map[int(round(self.gps.x))][int(round(self.gps.y))+1] in [-2, 0]: # check right wall (up) not there
+                next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
+                self.facing += 90
+            elif self.map[int(round(self.gps.x)) - 1][int(round(self.gps.y))] in [-2, 0]: # right wall is there
+                next_point = Vector3(x=self.current_point.x - 1, y=self.current_point.y, z=0)
+            else:
+                self.facing -= 90
+                return self.current_point
+
         return next_point   
 
     def mainloop(self):
