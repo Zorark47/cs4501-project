@@ -104,8 +104,8 @@ class GlobalPlanner:
             if self.current_point == self.next_point and not self.at_waypoint:
                 self.at_waypoint = True
             '''
-            print("cur oint " + str(self.current_point))
-            print("next point " + str(self.next_point))
+            #print("cur oint " + str(self.current_point))
+            #print("next point " + str(self.next_point))
             if (self.current_point == self.next_point) or first:
                 print("pub false")
                 time.sleep(3)
