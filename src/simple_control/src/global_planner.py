@@ -7,6 +7,7 @@ import math
 from geometry_msgs.msg import Vector3, Point, PointStamped, PoseStamped, TransformStamped
 from nav_msgs.msg import OccupancyGrid, Path
 from tf2_geometry_msgs import do_transform_point
+from std_msgs import Bool
 from std_msgs.msg import Int32MultiArray
 from astar_class import AStarPlanner
 import numpy as np
@@ -37,7 +38,7 @@ class GlobalPlanner:
         self.path_pub = rospy.Publisher('uav/path', Int32MultiArray, queue_size=1)
 
         self.goal_pub = rospy.Publisher('/uav/goal', Vector3, queue_size=1)
-        self.moving_pub = rospy.Publisher('/uav/moving', bool, queue_size=1)
+        self.moving_pub = rospy.Publisher('/uav/moving', Bool, queue_size=1)
 
 
         self.mainloop()
