@@ -106,7 +106,7 @@ class GlobalPlanner:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 270: # left
+        elif self.facing == 270 or self.facing == -90: # left
             if self.map[int(round(self.gps.x))][int(round(self.gps.y))+1] in [-2, 0]: # check right wall (up) not there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
                 self.facing += 90
@@ -144,7 +144,7 @@ class GlobalPlanner:
             #print("cur oint " + str(self.current_point))
             #print("next point " + str(self.next_point))
             if (self.current_point == self.next_point) or first:
-                print("pub false")
+                #print("pub false")
                 time.sleep(3)
                 self.moving_pub.publish(False)
                 time.sleep(3)

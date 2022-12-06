@@ -42,6 +42,7 @@ class LocalPlanner:
         self.has_run = False
         self.prev_scan = [0 for x in range(16)]
         self.list_of_doors = [(-1, -1) for x in range(3)]
+        self.list_of_doors_crossed = []
 
 
         #open door globals
@@ -86,6 +87,8 @@ class LocalPlanner:
     
     # if a door is seen set it to a closed door
     def setDoor(self, i, x, y):
+        if(len(self.list_of_doors_crossed) < self.door_count):
+            return
         min_noise = 0.1
         if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) < 0.3):
             # check the door hasn't been set and there isn't already 3 doors
@@ -122,8 +125,8 @@ class LocalPlanner:
             count += 1
         if (count == 1):
             print("opening door at   : (" + str(door[0]) + ", " + str(door[1]) + ")")
-            og_x = door[0] - math.floor((self.width) / 2)
-            og_y = door[1] - math.floor((self.height) / 2)
+            og_x = door[0] - math.floor(self.width / 2)
+            og_y = ((self.height - door[1]) - 1) - (math.floor(self.height/2))
             print("opening door at og: (" + str(og_x) + ", " + str(og_y) + ")")
             self.opened_doors.append((door[0], door[1]))
             self.success = self.mission_planner.use_keyClient(Point(og_x, og_y, 0))
@@ -136,10 +139,22 @@ class LocalPlanner:
 
 
 
+
+
+
     # update the grid based on the newest lidar scan
     def update_grid(self):
         roll, pitch, yaw = euler_from_quaternion((self.gps.pose.orientation.x, self.gps.pose.orientation.y, self.gps.pose.orientation.z, self.gps.pose.orientation.w))
-        
+        # lock in blocks drone has flone over
+        if self.grid.data[self.o_index_grid[int(round(self.gps.pose.position.x))][int(round(self.gps.pose.position.y))]] > 0:
+            self.grid.data[self.o_index_grid[int(round(self.gps.pose.position.x))][int(round(self.gps.pose.position.y))]] = 0
+        self.o_confirm_grid[int(round(self.gps.pose.position.x))][int(round(self.gps.pose.position.y))] = 1
+
+        # store doors the drone has crossed
+        if((int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y))) not in self.list_of_doors_crossed):
+            self.list_of_doors_crossed.append((int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y))))
+
+
 
         for i in range(len(self.lidar.ranges)):
             distance = self.lidar.ranges[i]
@@ -157,7 +172,8 @@ class LocalPlanner:
 
             # set the point of where the lidar is bouncing back froom
             point_x = ((distance) * math.sin(angle)) + self.gps.pose.position.x
-            point_y = ((distance) * math.cos(angle)) + self.gps.pose.position.y
+            point_y = ((distance) * math.cos(angle)) + ((self.height - self.gps.pose.position.y) - 1)
+            #print("y: " + str(point_y))
             
 
                 
@@ -239,7 +255,9 @@ class LocalPlanner:
                     e_point_y = int(math.ceil(point_y))
                 o_point_x = int(math.floor(point_x))
                 e_point_x = int(math.ceil(point_x))
-                
+
+
+            #e_point_y = (self.height - e_point_y) - 1 
             # if i == 75: #angle > 5.8 or angle < 0.2:
             #     print("angle: " + str(angle))
             #     print("lidar index: " + str(i))
@@ -254,9 +272,9 @@ class LocalPlanner:
             # increase obstance point
             inc = .3
             if(o_point_x >= 0) and (o_point_x < self.width) and (o_point_y >= 0) and (o_point_y < self.height):
-                if (distance < self.lidar.range_max) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] <= (100 - inc)) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > 0):
+                if (distance < self.lidar.range_max) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] <= (100 - inc)) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > 0) and (self.o_confirm_grid[o_point_x][o_point_y] == 0):
                     self.grid.data[self.o_index_grid[o_point_x][o_point_y]] += inc
-                elif (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > (100 -inc)) and (self.o_confirm_grid[o_point_x][o_point_y] == 0) and (distance < 0.75):
+                elif (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > (100 -inc)) and (self.o_confirm_grid[o_point_x][o_point_y] == 0) and (distance < 1.2) and (i==7 or i==3 or i ==11 or i==15):
                     self.o_confirm_grid[o_point_x][o_point_y] = 1
 
             
@@ -264,6 +282,8 @@ class LocalPlanner:
             dec = .6
             if(distance > 1) and (e_point_x >= 0) and (e_point_x < self.width) and (e_point_y >= 0) and (e_point_y < self.height):
                 if self.grid.data[self.o_index_grid[e_point_x][e_point_y]] >= dec and (self.o_confirm_grid[e_point_x][e_point_y] == 0): #and self.grid.data[self.o_index_grid[e_point_x][e_point_y]] < 99:
+                    if(e_point_y == 8):
+                        print(i)
                     self.grid.data[self.o_index_grid[e_point_x][e_point_y]] -= dec
             
             # decrease in between points
@@ -274,7 +294,7 @@ class LocalPlanner:
                     e_point_x = int(round((distance * math.sin(angle)) + self.gps.pose.position.x))
                     e_point_y = int(round((distance * math.cos(angle)) + self.gps.pose.position.y))
                     if (e_point_x >= 0) and (e_point_x < self.width) and (e_point_y >= 0) and (e_point_y < self.height):
-                        if self.grid.data[self.o_index_grid[e_point_x][e_point_y]] >= dec and (self.o_confirm_grid[e_point_x][e_point_y] == 0):#self.grid.data[self.o_index_grid[e_point_x][e_point_y]] < 99:
+                        if False and self.grid.data[self.o_index_grid[e_point_x][e_point_y]] >= dec and (self.o_confirm_grid[e_point_x][e_point_y] == 0):#self.grid.data[self.o_index_grid[e_point_x][e_point_y]] < 99:
                             self.grid.data[self.o_index_grid[e_point_x][e_point_y]] -= dec
                 distance -= step                        
         
@@ -289,7 +309,7 @@ class LocalPlanner:
                 #print(self.is_moving)
                 if (not self.is_moving):
                     self.update_grid()
-                    self.openDoor(int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y)))
+                    self.openDoor(int(round(self.gps.pose.position.x)), int(round((self.height - self.gps.pose.position.y) - 1)))
                 
                 #self.setDoor()
 
