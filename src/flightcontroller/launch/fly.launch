@@ -3,7 +3,7 @@
 
   <arg name="map_width" default="11" />
   <arg name="map_height" default="11" />
-  <arg name="seed" default="6" />
+  <arg name="seed" default="3" />
 
   <include file="$(find flightgoggles)/launch/core.launch">
   </include>
@@ -32,6 +32,7 @@
   </node>
 
   <node name="local_planner" pkg="simple_control" type="local_planner.py" output="screen" />
+  <node name="global_planner" pkg="simple_control" type="global_planner.py" output="screen" />
   <node name="mission_planner" pkg="simple_control" type="mission_planner.py" output="screen" />
 
 

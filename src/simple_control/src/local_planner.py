@@ -15,8 +15,10 @@ class LocalPlanner:
     def __init__(self):
         self.gps = None
         self.lidar = None
+        self.goal = None
         self.lidar_sub = rospy.Subscriber("/uav/sensors/lidar", LaserScan, self.get_lidar, queue_size=1)
         self.gps_sub = rospy.Subscriber("uav/sensors/gps", PoseStamped, self.get_gps, queue_size=1)
+        self.goal_sub = rospy.Subscriber('/uav/goal', Vector3, self.get_goal, queue_size=1)
         self.map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
@@ -30,6 +32,7 @@ class LocalPlanner:
         self.mission_planner = mission_planner.MissionPlanner()
         #self.prev_scan = [0 for x in range(self.lidar.ranges)]
 
+        #hardcode
         self.delay = 0
 
         # find door globals
@@ -55,6 +58,10 @@ class LocalPlanner:
         # self.grid.data[self.o_index_grid[0][self.height - 1]] = 75                  #top left
 
         self.mainloop()
+
+    def get_goal(self, msg):
+        self.goal = msg
+        self.grid.data[self.o_index_grid[int(self.goal.x)][int(self.goal.y)]] = -3
         
     def get_gps(self, msg):
         self.gps = msg
@@ -70,9 +77,8 @@ class LocalPlanner:
     
     # if a door is seen set it to a closed door
     def setDoor(self, i, x, y):
-
-        min_noise = 0.1
-        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise) and (abs(self.prev_scan[i] - self.lidar.ranges[i]) < 0.5):
+        min_noise = 0.2
+        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise):
             # check the door hasn't been set and there isn't already 3 doors
             if (x, y) not in self.list_of_doors and self.door_count < 3:
                 # check that there is no door directly next to it
@@ -224,20 +230,16 @@ class LocalPlanner:
                 o_point_x = int(math.floor(point_x))
                 e_point_x = int(math.ceil(point_x))
                 
-            if i == 75: #angle > 5.8 or angle < 0.2:
-                print("angle: " + str(angle))
-                print("lidar index: " + str(i))
-                print("distance : " + str(self.lidar.ranges[i]))
-                print("x: " + str(point_x))
-                print("y: " + str(point_y))
-                print("int  ensi: " + str(self.lidar.intensities[i]))
-                print("intensit7: " + str(self.lidar.intensities[11]))
-                print("x: " + str(o_point_x))
-                print("y: " + str(o_point_y))
-
-
-                            
-                
+            # if i == 75: #angle > 5.8 or angle < 0.2:
+            #     print("angle: " + str(angle))
+            #     print("lidar index: " + str(i))
+            #     print("distance : " + str(self.lidar.ranges[i]))
+            #     print("x: " + str(point_x))
+            #     print("y: " + str(point_y))
+            #     print("int  ensi: " + str(self.lidar.intensities[i]))
+            #     print("intensit7: " + str(self.lidar.intensities[11]))
+            #     print("x: " + str(o_point_x))
+            #     print("y: " + str(o_point_y))
 
             # increase obstance point
             inc = .3

@@ -1,0 +1,55 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_307fd/fast"
+/usr/bin/make -f CMakeFiles/cmTC_307fd.dir/build.make CMakeFiles/cmTC_307fd.dir/build
+make[1]: Entering directory '/root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_307fd.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_307fd.dir/CheckSymbolExists.c.o   -c /root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_307fd
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_307fd.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_307fd.dir/CheckSymbolExists.c.o  -o cmTC_307fd 
+CMakeFiles/cmTC_307fd.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_307fd.dir/build.make:97: recipe for target 'cmTC_307fd' failed
+make[1]: *** [cmTC_307fd] Error 1
+make[1]: Leaving directory '/root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_307fd/fast' failed
+make: *** [cmTC_307fd/fast] Error 2
+
+File /root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_e842b/fast"
+/usr/bin/make -f CMakeFiles/cmTC_e842b.dir/build.make CMakeFiles/cmTC_e842b.dir/build
+make[1]: Entering directory '/root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_e842b.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_e842b.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_e842b
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e842b.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_e842b.dir/CheckFunctionExists.c.o  -o cmTC_e842b -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_e842b.dir/build.make:97: recipe for target 'cmTC_e842b' failed
+make[1]: *** [cmTC_e842b] Error 1
+make[1]: Leaving directory '/root/CS4501-Labs/project/build/flightcontroller/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_e842b/fast' failed
+make: *** [cmTC_e842b/fast] Error 2
+
+

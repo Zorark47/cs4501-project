@@ -1,0 +1,6 @@
+devel_space: /root/CS4501-Labs/project/devel
+install: false
+install_space: /root/CS4501-Labs/project/install
+profile: default
+source_space: /root/CS4501-Labs/project/src
+workspace: /root/CS4501-Labs/project
