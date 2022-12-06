@@ -3,7 +3,7 @@ import rospy
 import tf2_ros
 import time
 import copy
-import math
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Vector3, Point, PointStamped, PoseStamped, TransformStamped
 from nav_msgs.msg import OccupancyGrid, Path
 from tf2_geometry_msgs import do_transform_point
@@ -76,7 +76,7 @@ class GlobalPlanner:
     def bug(self):
         next_point = None
         # check right
-        if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] == 0:
+        if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]:
             next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
             # rospy.loginfo(next_point)
             self.facing = 'east'
@@ -84,11 +84,19 @@ class GlobalPlanner:
 
     def mainloop(self):
         rate = rospy.Rate(2)
-        time.sleep(5)
+        self.moving_pub.publish(False)
+        time.sleep(1)
+        self.moving_pub.publish(False)
+        time.sleep(1)
+        self.moving_pub.publish(False)
+        time.sleep(1)
         # While ROS is still running
+        first = True
         while not rospy.is_shutdown():
+            '''
             self.moving_pub.publish(not self.at_waypoint)
             if self.at_waypoint:
+                time.sleep(3)
                 self.at_waypoint = False
                 self.next_point = self.bug()
                 if self.next_point:
@@ -96,8 +104,26 @@ class GlobalPlanner:
                     rospy.loginfo("got next point")
             if self.current_point == self.next_point and not self.at_waypoint:
                 self.at_waypoint = True
+            '''
+            print("cur oint " + str(self.current_point))
+            print("next point " + str(self.next_point))
+            if (self.current_point == self.next_point) or first:
+                print("pub false")
+                time.sleep(3)
+                self.moving_pub.publish(False)
+                time.sleep(3)
+                self.next_point = self.bug()
+                if self.next_point:
+                    self.moving_pub.publish(True)
+                    time.sleep(1)
+                    self.position_pub.publish(self.next_point)
+                    rospy.loginfo("got next point")
+            else:
+                self.moving_pub.publish(True)
             
-        rate.sleep()
+
+            first = False
+            rate.sleep()
 
 if __name__ == '__main__':
   rospy.init_node('global_planner')
