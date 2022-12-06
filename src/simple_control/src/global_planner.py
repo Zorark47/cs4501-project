@@ -146,10 +146,12 @@ class GlobalPlanner:
                     elif door_coords.x > self.current_point.x: # right
                         self.next_point = Vector3(x=door[0]-1, y=door[1], z=0)
                         self.facing = 90
-                    elif door_coords.y < self.current_point.y: # up
+                    elif door_coords.y > self.current_point.y: # up
+                        print("door above")
                         self.next_point = Vector3(x=door[0], y=door[1]-1, z=0)
                         self.facing = 0
-                    elif door_coords.y > self.current_point.y: #down
+                    elif door_coords.y < self.current_point.y: #down
+                        print("door below")
                         self.next_point = Vector3(x=door[0], y=door[1]+1, z=0)
                         self.facing = 180
                     self.position_pub.publish(self.next_point)
@@ -160,9 +162,9 @@ class GlobalPlanner:
                         self.facing = 270
                     elif door_coords.x > self.current_point.x: # right
                         self.facing = 90
-                    elif door_coords.y < self.current_point.y: # up
+                    elif door_coords.y > self.current_point.y: # up
                         self.facing = 0
-                    elif door_coords.y > self.current_point.y: #down
+                    elif door_coords.y < self.current_point.y: #down
                         self.facing = 180
                     self.doors_visited.append(door)
                     self.next_point = door_coords
