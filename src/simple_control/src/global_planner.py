@@ -23,8 +23,8 @@ class GlobalPlanner:
         self.got_goal = False
         self.facing = 0
         self.next_point = None
+        self.door_open = False
         self.current_point = Vector3()
-        self.next_goal = Vector3(5,8,0)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
 
@@ -44,13 +44,15 @@ class GlobalPlanner:
 
         self.list_of_doors = set()
         self.doors_visited = []
-
+        
 
         self.mainloop()
 
     def get_doors(self, msg):
-        rospy.loginfo(Vector3(x=msg.x-(float(self.width)/2), y=self.height-(msg.y-(float(self.height)/2)), z=0))
-        self.list_of_doors.add((msg.x, msg.y))
+        if msg.x > 0:
+            self.list_of_doors.add((msg.x-(self.width/2), (msg.y-(self.height/2))*-1))
+        else:
+            self.list_of_doors.add((msg.x-(self.width/2), msg.y-(self.height/2)))
 
     def transform_tower(self, msg):
         if not self.goal and not self.got_goal:
@@ -62,7 +64,6 @@ class GlobalPlanner:
                 new_point = do_transform_point(point, transform)
                 self.goal = Vector3(x=new_point.point.x+(float(self.width)/2), y=self.height-(new_point.point.y+(float(self.height)/2)), z=0)
                 self.got_goal = True
-                rospy.loginfo(self.goal)
                 self.goal_pub.publish(self.goal)
 
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -84,61 +85,98 @@ class GlobalPlanner:
 
     def bug(self):
         next_point = None
+        print("bug")
         # check right
-        if self.facing == 0 or self.facing == -360: # north
-            if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]: # check right wall (right)
+        if self.facing in [-360, 0, 360]: # north
+            if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-3, -2, 0]: # check right wall (right)
                 next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
                 self.facing += 90
-            elif self.map[int(round(self.gps.x))][int(round(self.gps.y)) + 1] in [-2, 0]:
+            elif self.map[int(round(self.gps.x))][int(round(self.gps.y)) + 1] in [-3, -2, 0]:
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
             else:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 90 or self.facing == -270: # right
-            if self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-2, 0]: # check right wall (down) not there
+        elif self.facing in [-270, 90, 450]: # right
+            if self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-3, -2, 0]: # check right wall (down) not there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y-1, z=0)
                 self.facing += 90
-            elif self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-2, 0]: # right wall is there
+            elif self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] in [-3, -2, 0]: # right wall is there
                 next_point = Vector3(x=self.current_point.x + 1, y=self.current_point.y, z=0)
             else:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 180 or self.facing == -180: # down
-            if self.map[int(round(self.gps.x))-1][int(round(self.gps.y))] in [-2, 0]: # check right wall (left) not there
+        elif self.facing in [-180, 180, 540]: # down
+            if self.map[int(round(self.gps.x))-1][int(round(self.gps.y))] in [-3, -2, 0]: # check right wall (left) not there
                 next_point = Vector3(x=self.current_point.x-1, y=self.current_point.y, z=0)
                 self.facing += 90
-            elif self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-2, 0]: # right wall is there
+            elif self.map[int(round(self.gps.x))][int(round(self.gps.y))-1] in [-3, -2, 0]: # right wall is there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y-1, z=0)
             else:
                 self.facing -= 90
                 return self.current_point
 
-        elif self.facing == 270 or self.facing == -90: # left
-            if self.map[int(round(self.gps.x))][int(round(self.gps.y))+1] in [-2, 0]: # check right wall (up) not there
+        elif self.facing in [-90, 270, 630]: # left
+            if self.map[int(round(self.gps.x))][int(round(self.gps.y))+1] in [-3, -2, 0]: # check right wall (up) not there
                 next_point = Vector3(x=self.current_point.x, y=self.current_point.y+1, z=0)
                 self.facing += 90
-            elif self.map[int(round(self.gps.x)) - 1][int(round(self.gps.y))] in [-2, 0]: # right wall is there
+            elif self.map[int(round(self.gps.x)) - 1][int(round(self.gps.y))] in [-3, -2, 0]: # right wall is there, check left
                 next_point = Vector3(x=self.current_point.x - 1, y=self.current_point.y, z=0)
             else:
                 self.facing -= 90
                 return self.current_point
 
+        # if self.map[int(next_point.x)][int(next_point.y)] not in [-3, -2, 0]:
+        #     return self.current_point
         return next_point   
 
     def go_to_door(self):
+        rospy.loginfo("go for door")
         for door in self.list_of_doors:
+            rospy.loginfo(self.list_of_doors)
+            rospy.loginfo(self.doors_visited)
             if door not in self.doors_visited:
-                self.doors_visited.append(door)
-                rospy.loginfo(Vector3(x=door[0]-(float(self.width)/2), y=self.height-(door[1]-(float(self.height)/2)), z=0))
-                self.next_point = Vector3(x=door[0]-(self.width/2), y=door[1]-(self.height/2))
-                self.position_pub.publish(self.next_point)
+                door_coords = Vector3(x=door[0], y=door[1], z=0)
+                if self.map[int(door[0]+(self.width/2))][int((door[1])+self.height/2)] != -2:
+                    print("noq")
+                    if door_coords.x < self.current_point.x: # left
+                        self.next_point = Vector3(x=door[0]+1, y=door[1], z=0)
+                        self.facing = 270
+                    elif door_coords.x > self.current_point.x: # right
+                        self.next_point = Vector3(x=door[0]-1, y=door[1], z=0)
+                        self.facing = 90
+                    elif door_coords.y < self.current_point.y: # up
+                        self.next_point = Vector3(x=door[0], y=door[1]-1, z=0)
+                        self.facing = 0
+                    elif door_coords.y > self.current_point.y: #down
+                        self.next_point = Vector3(x=door[0], y=door[1]+1, z=0)
+                        self.facing = 180
+                    self.position_pub.publish(self.next_point)
+                    self.moving_pub.publish(True)
+                    time.sleep(2)
+                elif self.map[int(door[0]+(self.width/2))][int((door[1])+self.height/2)] == -2:
+                    if door_coords.x < self.current_point.x: # left
+                        self.facing = 270
+                    elif door_coords.x > self.current_point.x: # right
+                        self.facing = 90
+                    elif door_coords.y < self.current_point.y: # up
+                        self.facing = 0
+                    elif door_coords.y > self.current_point.y: #down
+                        self.facing = 180
+                    self.doors_visited.append(door)
+                    self.next_point = door_coords
+                    self.position_pub.publish(self.next_point)
+                    self.moving_pub.publish(True)
+                    time.sleep(2)
+                return
+
+    def final_path():
+        a = 10
 
     def mainloop(self):
         rate = rospy.Rate(2)
         self.moving_pub.publish(False)
-        time.sleep(25)
         self.moving_pub.publish(False)
         time.sleep(1)
         self.moving_pub.publish(False)
@@ -146,24 +184,30 @@ class GlobalPlanner:
         # While ROS is still running
         first = True
         while not rospy.is_shutdown():
-            if self.list_of_doors:
-                self.go_to_door()
-            if (self.current_point == self.next_point) or first:
-                time.sleep(3)
+            if self.current_point == self.next_point:
                 self.moving_pub.publish(False)
+                time.sleep(5)
+            if self.current_point == self.goal:
+                self.final_path()
+            elif len(self.list_of_doors) > len(self.doors_visited):
+                self.moving_pub.publish(True)
                 time.sleep(3)
+                self.go_to_door()
+            elif (self.current_point == self.next_point) or first:
+                self.moving_pub.publish(False)
+                time.sleep(4)
                 self.next_point = self.bug()
                 if self.next_point:
                     self.moving_pub.publish(True)
-                    time.sleep(1)
                     self.position_pub.publish(self.next_point)
                     rospy.loginfo("got next point")
+                    time.sleep(3)
             else:
                 self.moving_pub.publish(True)
-            
-
+            rospy.loginfo(self.facing)
+            rospy.loginfo(self.next_point)
             first = False
-            rate.sleep()
+        rate.sleep()
 
 if __name__ == '__main__':
   rospy.init_node('global_planner')
