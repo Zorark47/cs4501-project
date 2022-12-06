@@ -4,6 +4,7 @@ import tf2_ros
 import time
 import copy
 import math
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Vector3, Point, PointStamped, PoseStamped
 from nav_msgs.msg import OccupancyGrid, MapMetaData
 from sensor_msgs.msg import LaserScan
@@ -19,6 +20,7 @@ class LocalPlanner:
         self.lidar_sub = rospy.Subscriber("/uav/sensors/lidar", LaserScan, self.get_lidar, queue_size=1)
         self.gps_sub = rospy.Subscriber("uav/sensors/gps", PoseStamped, self.get_gps, queue_size=1)
         self.goal_sub = rospy.Subscriber('/uav/goal', Vector3, self.get_goal, queue_size=1)
+        self.is_moving_sub = rospy.Subscriber('uav/moving', Bool, self.get_is_moving, queue_size=1)
         self.map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=1)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
@@ -41,6 +43,7 @@ class LocalPlanner:
         self.prev_scan = [0 for x in range(16)]
         self.list_of_doors = [(-1, -1) for x in range(3)]
 
+
         #open door globals
         
         self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
@@ -56,12 +59,18 @@ class LocalPlanner:
         # self.grid.data[self.o_index_grid[self.width - 1][self.height - 1]] = 100    #top right
         # self.grid.data[self.o_index_grid[self.width - 1][0]] = 25                   #bottom right left
         # self.grid.data[self.o_index_grid[0][self.height - 1]] = 75                  #top left
+        
+        self.is_moving = True
+        
 
         self.mainloop()
 
     def get_goal(self, msg):
         self.goal = msg
         self.grid.data[self.o_index_grid[int(self.goal.x)][int(self.goal.y)]] = -3
+    
+    def get_is_moving(self, msg):
+        self.is_moving = msg.data
         
     def get_gps(self, msg):
         self.gps = msg
@@ -276,9 +285,10 @@ class LocalPlanner:
         while not rospy.is_shutdown():
             # rospy.loginfo(self.o_index_grid)
             if self.gps != None and self.lidar != None:
-                
-                self.update_grid()
-                self.openDoor(int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y)))
+                print(self.is_moving)
+                if (not self.is_moving):
+                    self.update_grid()
+                    self.openDoor(int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y)))
                 
                 #self.setDoor()
 
