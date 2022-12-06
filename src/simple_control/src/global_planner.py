@@ -68,8 +68,8 @@ class GlobalPlanner:
         self.gps.x = msg.pose.position.x + float(self.width/2)
         self.gps.y = msg.pose.position.y + float(self.height/2)
         self.gps.z = 0
-        self.current_point.x = int(msg.pose.position.x)
-        self.current_point.y = int(msg.pose.position.y)
+        self.current_point.x = int(round(msg.pose.position.x))
+        self.current_point.y = int(round(msg.pose.position.y))
         self.current_point.z = 0
 
     def get_map(self, msg):
@@ -78,10 +78,11 @@ class GlobalPlanner:
     def bug(self):
         next_point = None
         # check right
-        rospy.loginfo(self.current_point)
-        if self.map[int(self.gps.x) + 1][int(self.gps.y)] == 0:
+        rospy.loginfo(int(round(self.gps.x)) + 1)
+        rospy.loginfo(int(round(self.gps.y)))
+        if self.map[int(round(self.gps.x)) + 1][int(round(self.gps.y))] == 0:
             next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
-            rospy.loginfo(next_point)
+            # rospy.loginfo(next_point)
         return next_point   
 
     def mainloop(self):
@@ -90,13 +91,12 @@ class GlobalPlanner:
         # While ROS is still running
         while not rospy.is_shutdown():
             next_point = None
-            rospy.loginfo(self.current_point)
             if self.at_waypoint:
                 next_point = self.bug()
                 if next_point:
                     self.position_pub.publish(next_point)
                     self.at_waypoint = False
-            if self.current_point == next_point:
+            if self.current_point == next_point and not self.at_waypoint:
                 self.at_waypoint = True
             
     #     rate.sleep()

@@ -99,14 +99,14 @@ class LocalPlanner:
             point_y = ((distance) * math.cos(angle)) + self.gps.pose.position.y
             
 
-            if i == 15: #angle > 5.8 or angle < 0.2:
-                print("angle: " + str(angle))
-                print("lidar index: " + str(i))
-                print("distance : " + str(self.lidar.ranges[i]))
-                print("x: " + str(point_x))
-                print("y: " + str(point_y))
-                print("int  ensi: " + str(self.lidar.intensities[i]))
-                print("intensit7: " + str(self.lidar.intensities[11]))
+            # if i == 15: #angle > 5.8 or angle < 0.2:
+            #     print("angle: " + str(angle))
+            #     print("lidar index: " + str(i))
+            #     print("distance : " + str(self.lidar.ranges[i]))
+            #     print("x: " + str(point_x))
+            #     print("y: " + str(point_y))
+            #     print("int  ensi: " + str(self.lidar.intensities[i]))
+            #     print("intensit7: " + str(self.lidar.intensities[11]))
                 
 
             # starting the new better code here
@@ -116,8 +116,8 @@ class LocalPlanner:
             if(angle > 5.49779) or (angle <= 0.785398):
                 # upper 90
                 if (angle < (mid / 2)) or (angle > ((2 * math.pi) - (mid / 2))):
-                    if i == 15:
-                        print("here")
+                    # if i == 15:
+                    #     print("here")
                     # middle
                     o_point_x = int(round(point_x))
                     e_point_x = int(round(point_x))
@@ -181,9 +181,9 @@ class LocalPlanner:
                 e_point_x = int(math.ceil(point_x))
             #if(o_point_x == 6) and (o_point_y == 5):
                 #print("angle: " + str(angle))
-            if i == 15:
-                print("x: " + str(o_point_x))
-                print("y: " + str(o_point_y))
+            # if i == 15:
+            #     print("x: " + str(o_point_x))
+            #     print("y: " + str(o_point_y))
                 
                 
                 
@@ -210,39 +210,21 @@ class LocalPlanner:
                         self.grid.data[self.o_index_grid[e_point_x][e_point_y]] -= dec
                 distance -= step                        
 
+            # # increase prob at lidar range                for i in range(len(self.lidar.ranges)):
+            #         angle = ((self.lidar.angle_min) + (i * self.lidar.angle_increment)) % (2 * math.pi)
+            #         print("lidar angles i: " + str(i) + "angle: " + str(angle))oint_x][point_y]] < 100): # 
+            #         self.grid.data[self.o_index_grid[point_x][point_y]] += .05
+            #         continue
 
+            # # reduce prob at points between drone and lidar range
+            # for d in range(int(math.ceil(self.lidar.ranges[i]))):
+            #     point_x = int(round(d * math.sin(angle)) + self.gps.pose.position.x)
+            #     point_y = int(round(d * math.cos(angle)) + self.gps.pose.position.y)
+
+            #     if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
+            #         if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
+            #             self.grid.data[self.o_index_grid[point_x][point_y]] -= .10
             
-
-
-
-
-            
-            '''
-            # door hardcode
-            if point_x == 6 and point_y == 5:
-                self.delay += 1
-                # rospy.loginfo("door detected at 6, 5 from bottom left corner")
-                if [point_x, point_y] not in self.opened_doors and self.delay > 15000:
-                    self.opened_doors.append([point_x, point_y])
-                    self.success = self.mission_planner.use_keyClient(Point(1, 0, 0))
-                    rospy.loginfo("door opened")
-                continue
-
-            # increase prob at lidar range                for i in range(len(self.lidar.ranges)):
-                    angle = ((self.lidar.angle_min) + (i * self.lidar.angle_increment)) % (2 * math.pi)
-                    print("lidar angles i: " + str(i) + "angle: " + str(angle))oint_x][point_y]] < 100): # 
-                    self.grid.data[self.o_index_grid[point_x][point_y]] += .05
-                    continue
-
-            # reduce prob at points between drone and lidar range
-            for d in range(int(math.ceil(self.lidar.ranges[i]))):
-                point_x = int(round(d * math.sin(angle)) + self.gps.pose.position.x)
-                point_y = int(round(d * math.cos(angle)) + self.gps.pose.position.y)
-
-                if(point_x < self.width) and (point_x > 0) and (point_y < self.height) and (point_x > 0): # check if valid locaiton
-                    if(self.grid.data[self.o_index_grid[point_x][point_y]] > 0): # make sure prob is not already 0
-                        self.grid.data[self.o_index_grid[point_x][point_y]] -= .10
-            '''
         
 
     def mainloop(self):
