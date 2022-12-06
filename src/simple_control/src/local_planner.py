@@ -46,8 +46,8 @@ class LocalPlanner:
 
         #open door globals
         
-        self.o_index_grid = [[0 for x in range(self.width)]for y in range(self.height)]
-        self.o_confirm_grid = [[0 for x in range(self.width)]for y in range(self.height)]
+        self.o_index_grid = [[0 for x in range(self.height)]for y in range(self.width)]
+        self.o_confirm_grid = [[0 for x in range(self.height)]for y in range(self.width)]
 
         num = 0
         for x in range(self.width):
@@ -256,7 +256,7 @@ class LocalPlanner:
             if(o_point_x >= 0) and (o_point_x < self.width) and (o_point_y >= 0) and (o_point_y < self.height):
                 if (distance < self.lidar.range_max) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] <= (100 - inc)) and (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > 0):
                     self.grid.data[self.o_index_grid[o_point_x][o_point_y]] += inc
-                elif (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > (100 -inc)) and (self.o_confirm_grid[o_point_x][o_point_y] == 0) and (distance < 1):
+                elif (self.grid.data[self.o_index_grid[o_point_x][o_point_y]] > (100 -inc)) and (self.o_confirm_grid[o_point_x][o_point_y] == 0) and (distance < 0.75):
                     self.o_confirm_grid[o_point_x][o_point_y] = 1
 
             
