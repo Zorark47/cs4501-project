@@ -38,7 +38,7 @@ class AStarPlanner:
             came_from[str(next)] = current
 
     print("Error: No Path Found")
-    return [drone_position]
+    return None
 
   # Get the children nodes for the current node
   def get_neighbors(self, node_in, map_in):

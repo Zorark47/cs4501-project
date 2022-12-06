@@ -15,10 +15,13 @@ class GlobalPlanner:
 
     def __init__(self):
         time.sleep(10)
-        self.gps = None
+        self.gps = Vector3()
         self.goal = None
         self.map = None
-        self.next_goal = Point(0,3,0)
+        self.at_waypoint = True
+        self.got_goal = False
+        self.current_point = Vector3()
+        self.next_goal = Vector3(5,8,0)
         self.width = rospy.get_param('/environment_controller/map_width')
         self.height = rospy.get_param('/environment_controller/map_height')
 
@@ -29,98 +32,78 @@ class GlobalPlanner:
         self.gps_sub = rospy.Subscriber('/uav/sensors/gps', PoseStamped, self.get_gps, queue_size=1)
         self.position_pub = rospy.Publisher('/uav/input/position', Vector3, queue_size=1)
         self.map_sub = rospy.Subscriber('/map', OccupancyGrid, self.get_map, queue_size=1)
-        self.path_pub = rospy.Publisher('uav/path', Path, queue_size=1)
+        self.path_pub = rospy.Publisher('uav/path', Int32MultiArray, queue_size=1)
+
+        self.goal_pub = rospy.Publisher('/uav/goal', Vector3, queue_size=1)
+
 
         self.mainloop()
 
     def transform_tower(self, msg):
-        self.goal = msg
+        if not self.goal and not self.got_goal:
+            self.goal = msg
+        if self.goal and not self.got_goal:
+            try: 
+                    #TODO: Lookup the tower to world transform
+                transform = self.tfBuffer.lookup_transform('cell_tower', 'world', rospy.Time())
+
+                    #TODO: Convert the goal to a PointStamped
+                point = PointStamped(header=None, point=Point(x=self.goal.x, y=self.goal.y, z=0))
+
+                    #TODO: Use the do_transform_point function to convert the point using the transform
+                new_point = do_transform_point(point, transform)
+
+                    #TODO: Convert the point back into a vector message containing integers
+                self.goal = Vector3(x=new_point.point.x+(float(self.width)/2), y=new_point.point.y+(float(self.height)/2), z=0)
+                self.got_goal = True
+                self.goal_pub.publish(self.goal)
+
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                print('tf2 exception, continuing')
+
+        if self.got_goal:
+            self.goal_pub.publish(self.goal)
 
     def get_gps(self, msg):
-        self.gps = msg
+        self.gps.x = msg.pose.position.x + float(self.width/2)
+        self.gps.y = msg.pose.position.y + float(self.height/2)
+        self.gps.z = 0
+        self.current_point.x = int(msg.pose.position.x)
+        self.current_point.y = int(msg.pose.position.y)
+        self.current_point.z = 0
 
     def get_map(self, msg):
         self.map = np.reshape(msg.data, (self.width, self.height))
 
+    def bug(self):
+        next_point = None
+        # check right
+        rospy.loginfo(self.current_point)
+        if self.map[int(self.gps.x) + 1][int(self.gps.y)] == 0:
+            next_point = Vector3(x=self.current_point.x+1, y=self.current_point.y, z=0)
+            rospy.loginfo(next_point)
+        return next_point   
+
     def mainloop(self):
         rate = rospy.Rate(2)
-        self.have_plan = False
-        sent_position = False
-
-        # Create the path publish message
-        p_path = Int32MultiArray()
-
+        time.sleep(5)
         # While ROS is still running
         while not rospy.is_shutdown():
-
-        # If you dont have a plan wait for a map, current position, and a goal
-            if not self.have_plan:
-                # If we have received the data
-                time.sleep(15)
-                rospy.loginfo(str(rospy.get_name()) + ": Planning path")
-                astar = AStarPlanner(safe_distance=0)
-                path = astar.plan(self.map, [int(self.gps.pose.position.x), int(self.gps.pose.position.y)], [int(self.next_goal.x), int(self.next_goal.y)])
-                if path != None:
-                    path = np.array(path)
-                    self.have_plan = True
-                    # path[:, 0] = path[:, 0] + self.origin_x
-                    # path[:, 1] = path[:, 1] + self.origin_y
-                    rospy.loginfo(str(rospy.get_name()) + ": Executing path")   
-                    rospy.loginfo(str(rospy.get_name()) + ": " + str(path)) 
-                else:
-                    rospy.loginfo(str(rospy.get_name()) + ": path not found, try another goal")  
-            # We have a plan, execute it
-            else:    
-
-                # Publish the path
-                if len(p_path.data) != len(np.reshape(path,-1)):
-                    p_path.data = np.reshape(path,-1)
-                    p_path = Path(p_path)
-                    self.path_pub.publish(p_path)
-
-                    # Publish the current waypoint
-                    if sent_position == False or np.shape(path)[0] < 0:
-                        msg = Vector3()
-                        msg.x = path[0][0]
-                        msg.y = path[0][1]
-                        msg.z = 0
-                        self.position_pub.publish(msg)
-                        sent_position = True
-                else:
-                    path = path[1:]
-                    sent_position = False
-
-                # If we are done wait for next goal
-                if np.shape(path)[0] <= 0:
-                    self.have_plan = False
-                    self.gps = copy.deepcopy(self.goal_position)
-                    self.goal_position = []
-                    continue
-
-            # if not self.goal:
-            #     try: 
-            #         #TODO: Lookup the tower to world transform
-            #         transform = self.tfBuffer.lookup_transform('world', 'cell_tower', rospy.Time())
-
-            #         #TODO: Convert the goal to a PointStamped
-            #         point = PointStamped(header=None, point=Point(x=self.goal.x, y=self.goal.y, z=self.goal.z))
-
-            #         #TODO: Use the do_transform_point function to convert the point using the transform
-            #         new_point = do_transform_point(point, transform)
-
-            #         #TODO: Convert the point back into a vector message containing integers
-            #         self.goal = Vector3(x=new_point.point.x, y=new_point.point.y, z=new_point.point.z)
-            #         rospy.loginfo(self.goal)
-
-            #     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            #         print('tf2 exception, continuing')
-            #         continue
+            next_point = None
+            rospy.loginfo(self.current_point)
+            if self.at_waypoint:
+                next_point = self.bug()
+                if next_point:
+                    self.position_pub.publish(next_point)
+                    self.at_waypoint = False
+            if self.current_point == next_point:
+                self.at_waypoint = True
             
-        rate.sleep()
+    #     rate.sleep()
 
 if __name__ == '__main__':
-  rospy.init_node('tower_to_map')
+  rospy.init_node('global_planner')
   try:
-    tom = GlobalPlanner()
+    gp = GlobalPlanner()
   except rospy.ROSInterruptException:
     pass
