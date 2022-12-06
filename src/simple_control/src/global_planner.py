@@ -84,7 +84,11 @@ class GlobalPlanner:
     def mainloop(self):
         rate = rospy.Rate(2)
         self.moving_pub.publish(False)
-        time.sleep(5)
+        time.sleep(1)
+        self.moving_pub.publish(False)
+        time.sleep(1)
+        self.moving_pub.publish(False)
+        time.sleep(1)
         # While ROS is still running
         first = True
         while not rospy.is_shutdown():
@@ -100,14 +104,17 @@ class GlobalPlanner:
             if self.current_point == self.next_point and not self.at_waypoint:
                 self.at_waypoint = True
             '''
+            print("cur oint " + str(self.current_point))
+            print("next point " + str(self.next_point))
             if (self.current_point == self.next_point) or first:
                 print("pub false")
+                time.sleep(3)
                 self.moving_pub.publish(False)
-                
+                time.sleep(3)
                 self.next_point = self.bug()
                 if self.next_point:
                     self.moving_pub.publish(True)
-                    
+                    time.sleep(1)
                     self.position_pub.publish(self.next_point)
                     rospy.loginfo("got next point")
             else:

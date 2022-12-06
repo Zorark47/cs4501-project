@@ -86,12 +86,13 @@ class LocalPlanner:
     
     # if a door is seen set it to a closed door
     def setDoor(self, i, x, y):
-        min_noise = 0.2
-        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise):
+        min_noise = 0.1
+        if self.has_run and (self.door_count < 3) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) > min_noise) and  (abs(self.prev_scan[i] - self.lidar.ranges[i]) < 0.3):
             # check the door hasn't been set and there isn't already 3 doors
             if (x, y) not in self.list_of_doors and self.door_count < 3:
                 # check that there is no door directly next to it
                 if ((x + 1, y) not in self.list_of_doors) and ((x - 1, y) not in self.list_of_doors) and ((x, y + 1) not in self.list_of_doors) and ((x - 1, y) not in self.list_of_doors):
+                    
                     print("setting door at: (" + str(x) + ", " + str(y) + ") index: " + str(i))
                     self.grid.data[self.o_index_grid[x][y]] = -1
                     self.list_of_doors[self.door_count] = (x, y)
@@ -285,7 +286,7 @@ class LocalPlanner:
         while not rospy.is_shutdown():
             # rospy.loginfo(self.o_index_grid)
             if self.gps != None and self.lidar != None:
-                print(self.is_moving)
+                #print(self.is_moving)
                 if (not self.is_moving):
                     self.update_grid()
                     self.openDoor(int(round(self.gps.pose.position.x)), int(round(self.gps.pose.position.y)))
