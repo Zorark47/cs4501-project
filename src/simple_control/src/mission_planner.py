@@ -14,7 +14,7 @@ class MissionPlanner:
                 use_key_ = rospy.ServiceProxy('use_key', use_key)
                 succ = use_key_(point)
                 self.keys -= 1
-                rospy.loginfo(self.keys)
+                rospy.loginfo("keys left: %d", self.keys)
                 return succ
             else: 
                 return False

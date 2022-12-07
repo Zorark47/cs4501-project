@@ -5,6 +5,8 @@
   <arg name="map_height" default="23" />
 
 	<!-- TODO add any calls to your code -->
-  <!-- <node name="local_planner" pkg="simple_control" type="local_planner.py" output="screen" /> -->
+  <node name="local_planner" pkg="simple_control" type="local_planner.py" output="screen" />
+  <node name="global_planner" pkg="simple_control" type="global_planner.py" output="screen" />
+  <node name="mission_planner" pkg="simple_control" type="mission_planner.py" output="screen" />
 
 </launch>
